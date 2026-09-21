@@ -2,9 +2,9 @@ __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
 *.pkl
-*.joblib
 *.h5
 *.onnx
+!models/*.joblib
 data/*.csv
 data/*.xlsx
 data/*.json
