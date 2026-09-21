@@ -1,0 +1,58 @@
+{
+  "step8b_baseline": {
+    "dataset_path": "ml/data/complaints_dataset.csv",
+    "dataset_size": 300,
+    "train_samples": 240,
+    "test_samples": 60,
+    "category_model": {
+      "filename": "category_model.joblib",
+      "algorithm": "TF-IDF Vectorizer + Logistic Regression (L-BFGS)",
+      "accuracy": 0.4333,
+      "precision_weighted": 0.4647,
+      "recall_weighted": 0.4333,
+      "f1_score_weighted": 0.4359,
+      "f1_score_macro": 0.4419,
+      "confusion_matrix": "category_confusion_matrix.png"
+    },
+    "priority_model": {
+      "filename": "priority_model.joblib",
+      "algorithm": "TF-IDF Vectorizer + Logistic Regression (L-BFGS)",
+      "accuracy": 0.5000,
+      "precision_weighted": 0.4950,
+      "recall_weighted": 0.5000,
+      "f1_score_weighted": 0.4914,
+      "f1_score_macro": 0.4895,
+      "confusion_matrix": "priority_confusion_matrix.png"
+    }
+  },
+  "step8c_candidate": {
+    "dataset_path": "ml/data/complaint_dataset_step8c.csv",
+    "dataset_size": 920,
+    "train_samples": 736,
+    "test_samples": 184,
+    "test_split_ratio": 0.20,
+    "stratified": true,
+    "random_state": 42,
+    "category_model": {
+      "filename": "category_model_step8c.joblib",
+      "algorithm": "TF-IDF (unigrams+bigrams, sublinear tf) + Logistic Regression (C=2.0, balanced)",
+      "accuracy": 0.7609,
+      "precision_weighted": 0.7682,
+      "recall_weighted": 0.7609,
+      "f1_score_weighted": 0.7595,
+      "f1_score_macro": 0.7592,
+      "confusion_matrix": "category_confusion_matrix_step8c.png"
+    },
+    "priority_model": {
+      "filename": "priority_model_step8c.joblib",
+      "algorithm": "TF-IDF (unigrams+bigrams, sublinear tf) + Logistic Regression (C=1.5, balanced)",
+      "accuracy": 0.6467,
+      "precision_weighted": 0.6458,
+      "recall_weighted": 0.6467,
+      "f1_score_weighted": 0.6386,
+      "f1_score_macro": 0.6369,
+      "confusion_matrix": "priority_confusion_matrix_step8c.png"
+    },
+    "training_date": "2026-09-21T18:23:45+05:30"
+  }
+}

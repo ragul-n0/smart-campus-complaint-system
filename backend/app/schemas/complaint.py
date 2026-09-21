@@ -1,0 +1,108 @@
+from datetime import datetime
+from enum import Enum
+from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.department import DepartmentResponse
+from app.schemas.location import LocationResponse
+
+
+class ComplaintStatus(str, Enum):
+    pending = "Pending"
+    assigned = "Assigned"
+    in_progress = "In Progress"
+    resolved = "Resolved"
+    closed = "Closed"
+
+
+class ComplaintPriority(str, Enum):
+    low = "Low"
+    medium = "Medium"
+    high = "High"
+
+
+class ComplaintCategory(str, Enum):
+    it = "IT"
+    electrical = "Electrical"
+    maintenance = "Maintenance"
+    housekeeping = "Housekeeping"
+    security = "Security"
+    plumbing = "Plumbing"
+    furniture = "Furniture"
+    other = "Other"
+
+
+class ComplaintPredictRequest(BaseModel):
+    title: Optional[str] = Field(default=None, description="Complaint title for contextual prediction")
+    description: Optional[str] = Field(default=None, description="Complaint detailed description")
+    text: Optional[str] = Field(default=None, description="Combined complaint text")
+    version: Optional[str] = Field(default=None, description="Model version: 'step8c' (default) or 'step8b'")
+
+
+class ComplaintPredictResponse(BaseModel):
+    predicted_category: str
+    category_confidence: float
+    is_low_confidence: bool
+    predicted_priority: str
+    priority_confidence: float
+    model_version: str
+    active: bool
+
+
+# Request Schemas
+class ComplaintCreate(BaseModel):
+    title: str = Field(..., min_length=3, max_length=150, description="Brief summary of the issue")
+    description: str = Field(..., min_length=5, max_length=5000, description="Detailed explanation of the issue")
+    category: Optional[ComplaintCategory] = Field(default=None, description="Category of the campus issue (auto-detected via ML if omitted)")
+    priority: ComplaintPriority = Field(default=ComplaintPriority.medium, description="Issue urgency level")
+    location_id: int = Field(..., description="Target campus location ID")
+    image_url: Optional[str] = Field(default=None, max_length=500, description="Optional image/photo URL")
+
+
+class ComplaintUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=3, max_length=150)
+    description: Optional[str] = Field(default=None, min_length=5, max_length=5000)
+    category: Optional[ComplaintCategory] = None
+    priority: Optional[ComplaintPriority] = None
+    location_id: Optional[int] = None
+    image_url: Optional[str] = Field(default=None, max_length=500)
+
+
+# History / Timeline Schema
+class ComplaintHistoryResponse(BaseModel):
+    id: int
+    complaint_id: int
+    updated_by: Optional[int] = None
+    old_status: Optional[str] = None
+    new_status: str
+    comment: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Response Schemas (Never exposes passwords or sensitive tokens)
+class ComplaintResponse(BaseModel):
+    id: int
+    student_id: int
+    title: str
+    description: str
+    category: str
+    priority: str
+    location_id: int
+    location: Optional[LocationResponse] = None
+    department_id: Optional[int] = None
+    department: Optional[DepartmentResponse] = None
+    assigned_staff_id: Optional[int] = None
+    status: str
+    image_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    resolved_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ComplaintListResponse(BaseModel):
+    items: List[ComplaintResponse]
+    total: int

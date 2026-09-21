@@ -1,0 +1,283 @@
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.auth.dependencies import get_current_user
+from app.models.complaint import Complaint
+from app.models.complaint_update import ComplaintUpdate as ComplaintUpdateModel
+from app.models.department import Department
+from app.models.location import Location
+from app.models.user import User
+from app.schemas.complaint import (
+    ComplaintCreate,
+    ComplaintUpdate,
+    ComplaintResponse,
+    ComplaintHistoryResponse,
+)
+
+router = APIRouter()
+
+# Mapping rule for automatic department assignment based on category
+CATEGORY_DEPARTMENT_MAP = {
+    "IT": "IT",
+    "Electrical": "Electrical",
+    "Maintenance": "Maintenance",
+    "Housekeeping": "Housekeeping",
+    "Security": "Security",
+    "Plumbing": "Maintenance",
+    "Furniture": "Maintenance",
+    "Other": "Maintenance",
+}
+
+
+def _resolve_department(db: Session, category: str) -> Optional[int]:
+    """Helper to find matching department ID based on category."""
+    target_dept_name = CATEGORY_DEPARTMENT_MAP.get(category)
+    if not target_dept_name:
+        return None
+
+    dept = db.query(Department).filter(Department.name == target_dept_name).first()
+    return dept.id if dept else None
+
+
+@router.post("", response_model=ComplaintResponse, status_code=status.HTTP_201_CREATED)
+def create_complaint(
+    complaint_in: ComplaintCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Create a new campus complaint.
+    Only authenticated students are permitted.
+    Student ID is strictly sourced from authenticated JWT token.
+    """
+    if current_user.role != "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students are permitted to submit complaints.",
+        )
+
+    # Validate location
+    location = db.query(Location).filter(Location.id == complaint_in.location_id).first()
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Location with ID {complaint_in.location_id} does not exist.",
+        )
+
+    # Automatic department assignment based on category
+    dept_id = _resolve_department(db, complaint_in.category.value)
+
+    # Create new complaint
+    new_complaint = Complaint(
+        student_id=current_user.id,
+        title=complaint_in.title.strip(),
+        description=complaint_in.description.strip(),
+        category=complaint_in.category.value,
+        priority=complaint_in.priority.value if complaint_in.priority else "Medium",
+        location_id=complaint_in.location_id,
+        department_id=dept_id,
+        assigned_staff_id=None,
+        status="Pending",
+        image_url=complaint_in.image_url.strip() if complaint_in.image_url else None,
+    )
+
+    db.add(new_complaint)
+    db.flush()  # Populates new_complaint.id
+
+    # Create initial history entry
+    initial_history = ComplaintUpdateModel(
+        complaint_id=new_complaint.id,
+        updated_by=current_user.id,
+        old_status=None,
+        new_status="Pending",
+        comment="Complaint submitted",
+    )
+    db.add(initial_history)
+    db.commit()
+    db.refresh(new_complaint)
+
+    return new_complaint
+
+
+@router.get("", response_model=List[ComplaintResponse])
+def list_complaints(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    category_filter: Optional[str] = Query(None, alias="category"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    List complaints. For students, strictly returns their own complaints.
+    Results are ordered newest first.
+    """
+    query = db.query(Complaint)
+
+    if current_user.role == "student":
+        # Students can NEVER see complaints submitted by other students
+        query = query.filter(Complaint.student_id == current_user.id)
+    elif current_user.role == "staff" and current_user.department_id:
+        # Staff can see their department complaints
+        query = query.filter(Complaint.department_id == current_user.department_id)
+
+    # Apply filters
+    if status_filter:
+        query = query.filter(Complaint.status == status_filter)
+    if category_filter:
+        query = query.filter(Complaint.category == category_filter)
+
+    complaints = query.order_by(Complaint.created_at.desc()).all()
+    return complaints
+
+
+@router.get("/{complaint_id}", response_model=ComplaintResponse)
+def get_complaint(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Retrieve single complaint details.
+    A student can only view their own complaint.
+    """
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Complaint with ID {complaint_id} was not found.",
+        )
+
+    # Security check: verify ownership for student
+    if current_user.role == "student" and complaint.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: You are not authorized to view this complaint.",
+        )
+
+    return complaint
+
+
+@router.put("/{complaint_id}", response_model=ComplaintResponse)
+def update_complaint(
+    complaint_id: int,
+    complaint_in: ComplaintUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Edit a complaint.
+    A student may only edit their own complaint, and only while status is 'Pending'.
+    """
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Complaint with ID {complaint_id} was not found.",
+        )
+
+    # Security check: must be owner
+    if current_user.role == "student" and complaint.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: You cannot modify another student's complaint.",
+        )
+
+    # Status restriction: student can only edit while Pending
+    if current_user.role == "student" and complaint.status != "Pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot edit complaint. Complaints can only be modified while status is 'Pending' (current status: '{complaint.status}').",
+        )
+
+    # Apply updates
+    if complaint_in.title is not None:
+        complaint.title = complaint_in.title.strip()
+    if complaint_in.description is not None:
+        complaint.description = complaint_in.description.strip()
+    if complaint_in.category is not None:
+        complaint.category = complaint_in.category.value
+        # Re-resolve department
+        complaint.department_id = _resolve_department(db, complaint.category)
+    if complaint_in.priority is not None:
+        complaint.priority = complaint_in.priority.value
+    if complaint_in.location_id is not None:
+        loc = db.query(Location).filter(Location.id == complaint_in.location_id).first()
+        if not loc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Location with ID {complaint_in.location_id} does not exist.",
+            )
+        complaint.location_id = complaint_in.location_id
+    if complaint_in.image_url is not None:
+        complaint.image_url = complaint_in.image_url.strip() if complaint_in.image_url else None
+
+    db.commit()
+    db.refresh(complaint)
+    return complaint
+
+
+@router.delete("/{complaint_id}")
+def delete_complaint(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Delete a complaint.
+    A student can only delete their own complaint while it is 'Pending'.
+    """
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Complaint with ID {complaint_id} was not found.",
+        )
+
+    if current_user.role == "student" and complaint.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: You cannot delete another student's complaint.",
+        )
+
+    if current_user.role == "student" and complaint.status != "Pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete complaint. Deletion is only allowed while status is 'Pending' (current status: '{complaint.status}').",
+        )
+
+    db.delete(complaint)
+    db.commit()
+    return {"message": "Complaint deleted successfully.", "complaint_id": complaint_id}
+
+
+@router.get("/{complaint_id}/history", response_model=List[ComplaintHistoryResponse])
+def get_complaint_history(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Retrieve audit history & status timeline for a complaint.
+    For students, only return history for their own complaint.
+    """
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Complaint with ID {complaint_id} was not found.",
+        )
+
+    if current_user.role == "student" and complaint.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: You are not authorized to view history for this complaint.",
+        )
+
+    history = (
+        db.query(ComplaintUpdateModel)
+        .filter(ComplaintUpdateModel.complaint_id == complaint_id)
+        .order_by(ComplaintUpdateModel.created_at.asc())
+        .all()
+    )
+    return history

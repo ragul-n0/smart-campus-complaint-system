@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+*.pkl
+*.joblib
+*.h5
+*.onnx
+data/*.csv
+data/*.xlsx
+data/*.json
+!data/.gitkeep
+!models/.gitkeep
+!notebooks/.gitkeep
+!src/.gitkeep
