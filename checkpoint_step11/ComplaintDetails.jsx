@@ -12,7 +12,6 @@ import {
   Loader2,
   Check,
   User,
-  Calendar,
 } from 'lucide-react';
 import {
   fetchComplaintDetails,
@@ -46,7 +45,6 @@ export default function ComplaintDetails() {
 
   const [complaint, setComplaint] = useState(null);
   const [history, setHistory] = useState([]);
-  const [historyError, setHistoryError] = useState(false);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -69,8 +67,14 @@ export default function ComplaintDetails() {
     try {
       setLoading(true);
       setErrorMsg('');
-      const compData = await fetchComplaintDetails(id);
+      const [compData, histData, locsData] = await Promise.all([
+        fetchComplaintDetails(id),
+        fetchComplaintHistory(id),
+        fetchLocations().catch(() => []),
+      ]);
       setComplaint(compData);
+      setHistory(histData);
+      setLocations(locsData);
 
       setEditForm({
         title: compData.title,
@@ -80,19 +84,6 @@ export default function ComplaintDetails() {
         location_id: compData.location_id,
         image_url: compData.image_url || '',
       });
-
-      try {
-        const histData = await fetchComplaintHistory(id);
-        setHistory(histData || []);
-        setHistoryError(false);
-      } catch {
-        setHistory([]);
-        setHistoryError(true);
-      }
-
-      fetchLocations()
-        .then((locs) => setLocations(locs || []))
-        .catch(() => setLocations([]));
     } catch (err) {
       setErrorMsg(err.message || 'Failed to load complaint details.');
     } finally {
@@ -180,8 +171,6 @@ export default function ComplaintDetails() {
   }
 
   const currentStepIndex = STATUS_STEPS.indexOf(complaint?.status || 'Pending');
-  const resolutionUpdate = history?.find((h) => h.new_status === 'Resolved');
-  const closureUpdate = history?.find((h) => h.new_status === 'Closed');
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full">
@@ -374,25 +363,7 @@ export default function ComplaintDetails() {
             </h1>
 
             {/* Metadata Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 mb-6 text-xs">
-              <div>
-                <div className="text-slate-500 flex items-center gap-1 mb-1">
-                  <span>Category</span>
-                </div>
-                <div>
-                  <CategoryBadge category={complaint.category} size="xs" />
-                </div>
-              </div>
-
-              <div>
-                <div className="text-slate-500 flex items-center gap-1 mb-1">
-                  <span>Priority</span>
-                </div>
-                <div>
-                  <PriorityBadge priority={complaint.priority} size="xs" showIcon />
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 mb-6 text-xs">
               <div>
                 <div className="text-slate-500 flex items-center gap-1 mb-1">
                   <MapPin className="w-3.5 h-3.5 text-blue-600" />
@@ -436,20 +407,6 @@ export default function ComplaintDetails() {
                   })}
                 </div>
               </div>
-
-              <div>
-                <div className="text-slate-500 flex items-center gap-1 mb-1">
-                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Last Updated</span>
-                </div>
-                <div className="font-semibold text-slate-800">
-                  {new Date(complaint.updated_at).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </div>
-              </div>
             </div>
 
             {/* Description */}
@@ -474,50 +431,6 @@ export default function ComplaintDetails() {
                     alt="Complaint evidence"
                     className="max-h-72 max-w-full rounded-lg object-contain"
                   />
-                </div>
-              </div>
-            )}
-
-            {/* Resolution Information */}
-            {(complaint.resolved_at || resolutionUpdate) && (
-              <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs flex-1">
-                    <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
-                      <span className="font-bold text-emerald-900 text-sm">Resolution Details</span>
-                      {(complaint.resolved_at || resolutionUpdate?.created_at) && (
-                        <span className="text-emerald-700 font-mono text-[11px]">
-                          Resolved on {new Date(complaint.resolved_at || resolutionUpdate.created_at).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-emerald-800 text-xs leading-relaxed mt-1">
-                      {resolutionUpdate?.comment || 'The complaint has been inspected and marked as resolved.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Closure Information */}
-            {(complaint.status === 'Closed' || closureUpdate) && (
-              <div className="mb-6 p-4 rounded-xl bg-teal-50 border border-teal-200">
-                <div className="flex items-start gap-3">
-                  <Check className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs flex-1">
-                    <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
-                      <span className="font-bold text-teal-900 text-sm">Complaint Closed</span>
-                      {closureUpdate?.created_at && (
-                        <span className="text-teal-700 font-mono text-[11px]">
-                          Closed on {new Date(closureUpdate.created_at).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-teal-800 text-xs leading-relaxed mt-1">
-                      {closureUpdate?.comment || 'Complaint successfully resolved and officially closed.'}
-                    </p>
-                  </div>
                 </div>
               </div>
             )}
@@ -574,12 +487,8 @@ export default function ComplaintDetails() {
           Activity &amp; Audit Log
         </h2>
 
-        {historyError ? (
-          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
-            Unable to load complaint history. Please try again.
-          </div>
-        ) : history.length === 0 ? (
-          <p className="text-xs text-slate-500 py-2">No status history available yet.</p>
+        {history.length === 0 ? (
+          <p className="text-xs text-slate-500">No status updates recorded yet.</p>
         ) : (
           <div className="space-y-3">
             {history.map((item) => (

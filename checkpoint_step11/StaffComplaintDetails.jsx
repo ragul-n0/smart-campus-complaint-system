@@ -39,9 +39,8 @@ export default function StaffComplaintDetails() {
   const [successMsg, setSuccessMsg] = useState('');
 
   // Modal State for Status Action
-  const [activeModal, setActiveModal] = useState(null); // 'assign', 'in_progress', 'resolve', 'close'
+  const [activeModal, setActiveModal] = useState(null); // 'assign', 'in_progress', 'resolve'
   const [resolutionComment, setResolutionComment] = useState('');
-  const [closureComment, setClosureComment] = useState('');
   const [commentError, setCommentError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -104,20 +103,13 @@ export default function StaffComplaintDetails() {
           ? resolutionComment.trim()
           : targetStatus === 'In Progress'
           ? 'Staff technician started active diagnostic/repair work.'
-          : targetStatus === 'Closed'
-          ? (closureComment.trim() || 'Complaint officially closed after resolution verification.')
           : null
       );
 
       setComplaint(updated);
       setActiveModal(null);
       setResolutionComment('');
-      setClosureComment('');
-      setSuccessMsg(
-        targetStatus === 'Closed'
-          ? 'Complaint closed successfully'
-          : `Complaint status successfully transitioned to ${targetStatus}.`
-      );
+      setSuccessMsg(`Complaint status successfully transitioned to ${targetStatus}.`);
       setTimeout(() => setSuccessMsg(''), 4000);
 
       const hist = await fetchComplaintHistory(id);
@@ -159,8 +151,6 @@ export default function StaffComplaintDetails() {
 
   const currentStepIndex = STATUS_STEPS.indexOf(complaint.status);
   const isAssignedToMe = complaint.assigned_staff_id === currentUser?.id;
-  const resolutionUpdate = history?.find((h) => h.new_status === 'Resolved');
-  const closureUpdate = history?.find((h) => h.new_status === 'Closed');
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -207,19 +197,15 @@ export default function StaffComplaintDetails() {
           )}
 
           {complaint.status === 'Resolved' && (
-            <button
-              onClick={() => setActiveModal('close')}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm transition"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Close Complaint</span>
-            </button>
+            <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Issue Resolved</span>
+            </span>
           )}
 
           {complaint.status === 'Closed' && (
-            <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 text-xs font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-teal-600" />
-              <span>Complaint Closed</span>
+            <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold">
+              <span>Ticket Closed</span>
             </span>
           )}
         </div>
@@ -309,50 +295,6 @@ export default function StaffComplaintDetails() {
                     alt="Complaint evidence"
                     className="max-h-72 max-w-full rounded-lg object-contain"
                   />
-                </div>
-              </div>
-            )}
-
-            {/* Resolution Information Banner */}
-            {(complaint.resolved_at || resolutionUpdate) && (
-              <div className="mt-6 p-4 rounded-xl bg-emerald-50/70 border border-emerald-200">
-                <div className="flex items-start space-x-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs flex-1">
-                    <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
-                      <span className="font-bold text-emerald-900 text-sm">Resolution Details</span>
-                      {(complaint.resolved_at || resolutionUpdate?.created_at) && (
-                        <span className="text-[11px] text-emerald-700 font-mono">
-                          Resolved on {new Date(complaint.resolved_at || resolutionUpdate.created_at).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-emerald-800 text-xs leading-relaxed mt-1">
-                      {resolutionUpdate?.comment || 'The complaint has been inspected and resolved.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Closure Information Banner */}
-            {(complaint.status === 'Closed' || closureUpdate) && (
-              <div className="mt-4 p-4 rounded-xl bg-teal-50/70 border border-teal-200">
-                <div className="flex items-start space-x-3">
-                  <Check className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs flex-1">
-                    <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
-                      <span className="font-bold text-teal-900 text-sm">Complaint Closed</span>
-                      {closureUpdate?.created_at && (
-                        <span className="text-[11px] text-teal-700 font-mono">
-                          Closed on {new Date(closureUpdate.created_at).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-teal-800 text-xs leading-relaxed mt-1">
-                      {closureUpdate?.comment || 'Complaint lifecycle completed and confirmed closed.'}
-                    </p>
-                  </div>
                 </div>
               </div>
             )}
@@ -460,7 +402,7 @@ export default function StaffComplaintDetails() {
             </h3>
 
             {history.length === 0 ? (
-              <p className="text-xs text-slate-500 py-2">No status history available yet.</p>
+              <p className="text-xs text-slate-400">No activity logged.</p>
             ) : (
               <div className="space-y-3">
                 {history.map((item) => (
@@ -468,16 +410,8 @@ export default function StaffComplaintDetails() {
                     key={item.id}
                     className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs"
                   >
-                    <div className="flex items-center justify-between font-semibold text-slate-800 mb-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {item.old_status && (
-                          <>
-                            <StatusBadge status={item.old_status} size="xs" />
-                            <span className="text-slate-400 font-normal">&rarr;</span>
-                          </>
-                        )}
-                        <StatusBadge status={item.new_status} size="xs" />
-                      </div>
+                    <div className="flex items-center justify-between font-semibold text-slate-800">
+                      <span>{item.new_status}</span>
                       <span className="text-[10px] text-slate-400 font-mono">
                         {new Date(item.created_at).toLocaleTimeString([], {
                           hour: '2-digit',
@@ -486,16 +420,12 @@ export default function StaffComplaintDetails() {
                       </span>
                     </div>
                     {item.comment && (
-                      <p className="text-slate-600 text-[11px] mt-1.5 leading-relaxed">
+                      <p className="text-slate-600 text-[11px] mt-1 leading-relaxed">
                         {item.comment}
                       </p>
                     )}
                     <div className="text-slate-400 text-[10px] mt-1">
-                      {new Date(item.created_at).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
+                      {new Date(item.created_at).toLocaleDateString()}
                     </div>
                   </div>
                 ))}
@@ -616,52 +546,6 @@ export default function StaffComplaintDetails() {
                   >
                     {isProcessing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     <span>Confirm Resolution</span>
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Modal: Close Complaint */}
-            {activeModal === 'close' && (
-              <>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Close this complaint?</h3>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
-                  This will mark the complaint as{' '}
-                  <span className="text-teal-700 font-semibold">Closed</span>. The complaint lifecycle
-                  will be officially completed.
-                </p>
-
-                <div className="mb-5">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Closure Remarks <span className="text-slate-400 font-normal">(optional)</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={closureComment}
-                    onChange={(e) => setClosureComment(e.target.value)}
-                    placeholder="Optional closure remarks (e.g. Issue inspected, verified with student, ticket closed)..."
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 leading-relaxed"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end space-x-3">
-                  <button
-                    onClick={() => {
-                      setActiveModal(null);
-                      setClosureComment('');
-                    }}
-                    disabled={isProcessing}
-                    className="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-800 text-xs font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => handleStatusUpdate('Closed')}
-                    disabled={isProcessing}
-                    className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center space-x-1.5 shadow-sm"
-                  >
-                    {isProcessing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    <span>Close Complaint</span>
                   </button>
                 </div>
               </>
