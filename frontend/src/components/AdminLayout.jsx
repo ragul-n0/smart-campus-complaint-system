@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, AlertCircle, Users, Building2, MapPin, BarChart3, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, AlertCircle, Users, Building2, MapPin, BarChart3, ShieldCheck, TrendingUp } from 'lucide-react';
 import { getUser } from '../services/auth';
 
 export default function AdminLayout({ children, title, subtitle, action }) {
@@ -9,10 +9,11 @@ export default function AdminLayout({ children, title, subtitle, action }) {
   const navItems = [
     { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/complaints', label: 'Complaints', icon: AlertCircle },
+    { to: '/admin/analytics', label: 'Analytics', icon: TrendingUp },
+    { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
     { to: '/admin/users', label: 'Users', icon: Users },
     { to: '/admin/departments', label: 'Departments', icon: Building2 },
     { to: '/admin/locations', label: 'Locations', icon: MapPin },
-    { to: '/admin/reports', label: 'Reports & Analytics', icon: BarChart3 },
   ];
 
   return (

@@ -8,6 +8,7 @@ import {
   Building2,
   Users,
   BarChart3,
+  TrendingUp,
   LogOut,
   Menu,
   X,
@@ -127,6 +128,10 @@ export default function Navbar() {
                   <Link to="/admin/locations" className={navLinkClasses('/admin/locations')}>
                     <MapPin className="w-4 h-4 text-slate-500" />
                     <span>Locations</span>
+                  </Link>
+                  <Link to="/admin/analytics" className={navLinkClasses('/admin/analytics')}>
+                    <TrendingUp className="w-4 h-4 text-slate-500" />
+                    <span>Analytics</span>
                   </Link>
                   <Link to="/admin/reports" className={navLinkClasses('/admin/reports')}>
                     <BarChart3 className="w-4 h-4 text-slate-500" />
@@ -282,6 +287,14 @@ export default function Navbar() {
                   >
                     <MapPin className="w-4 h-4 text-slate-500" />
                     <span>Locations</span>
+                  </Link>
+                  <Link
+                    to="/admin/analytics"
+                    onClick={closeMobileMenu}
+                    className={mobileLinkClasses('/admin/analytics')}
+                  >
+                    <TrendingUp className="w-4 h-4 text-slate-500" />
+                    <span>Analytics</span>
                   </Link>
                   <Link
                     to="/admin/reports"

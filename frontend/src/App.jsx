@@ -16,6 +16,7 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminDepartments from './pages/admin/AdminDepartments';
 import AdminLocations from './pages/admin/AdminLocations';
 import AdminReports from './pages/admin/AdminReports';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
 import SubmitComplaint from './pages/student/SubmitComplaint';
 import MyComplaints from './pages/student/MyComplaints';
 import ComplaintDetails from './pages/student/ComplaintDetails';
@@ -140,6 +141,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminAnalytics />
                 </ProtectedRoute>
               }
             />
