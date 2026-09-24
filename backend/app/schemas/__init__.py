@@ -20,6 +20,19 @@ from app.schemas.staff import (
     StaffStatusUpdateRequest,
     StaffMetricsResponse,
 )
+from app.schemas.analytics import (
+    OverviewKPI,
+    StatusDistributionItem,
+    CategoryDistributionItem,
+    PriorityDistributionItem,
+    DepartmentDistributionItem,
+    LocationDistributionItem,
+    TrendDataPoint,
+    ResolutionAnalytics,
+    DepartmentPerformanceItem,
+    CategoryPerformanceItem,
+    CombinedAnalyticsSummary,
+)
 
 __all__ = [
     "DepartmentBase",
@@ -47,4 +60,15 @@ __all__ = [
     "StaffComplaintResponse",
     "StaffStatusUpdateRequest",
     "StaffMetricsResponse",
+    "OverviewKPI",
+    "StatusDistributionItem",
+    "CategoryDistributionItem",
+    "PriorityDistributionItem",
+    "DepartmentDistributionItem",
+    "LocationDistributionItem",
+    "TrendDataPoint",
+    "ResolutionAnalytics",
+    "DepartmentPerformanceItem",
+    "CategoryPerformanceItem",
+    "CombinedAnalyticsSummary",
 ]
